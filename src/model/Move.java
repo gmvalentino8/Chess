@@ -23,25 +23,6 @@ public class Move {
     public int originY;
     public boolean pawnFirstMove;
 
-
-    public static void printMove(Move move) {
-        System.out.println("Curr Player: " + move.currPlayer
-                + " Selected Piece: " + move.selectedPiece.type
-                + " Taken Piece: " + move.takenPiece
-                + " Origin Square X: " + move.originSquare.xPosition
-                + " Origin Square Y: " + move.originSquare.yPosition
-                + " Target Square X: " + move.targetSquare.xPosition
-                + " Target Square Y: " + move.targetSquare.yPosition);
-    }
-
-    public static void printMoveList(List<Move> moves) {
-        System.out.println("Move List: ");
-        for (int i = 0; i < moves.size(); i++) {
-            System.out.print(i + ". ");
-            printMove(moves.get(i));
-        }
-    }
-
     /**
      * Default constructor for Move
      */

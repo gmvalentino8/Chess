@@ -6,7 +6,6 @@ import model.Player;
 import model.Square;
 import model.pieces.Piece;
 import view.GameView;
-import view.Print;
 
 import java.util.List;
 import javax.swing.*;
@@ -38,13 +37,16 @@ public class GameController {
      */
     public GameController(Game gameModel, GameView gameView) {
         this.gameView = gameView;
-        gameModel.setupGame();
+        gameModel = new Game();
         gameView.setSquareListeners(Board.boardWidth, Board.boardHeight, new SquareListener());
-        gameView.undoButton.addActionListener(new GameListener());
-        gameView.redoButton.addActionListener(new GameListener());
         gameView.newButton.addActionListener(new GameListener());
         gameView.resetButton.addActionListener(new GameListener());
-        newPlayers(true);
+        gameView.forfeitButton.addActionListener(new GameListener());
+        gameView.undoButton.addActionListener(new GameListener());
+        gameView.redoButton.addActionListener(new GameListener());
+        newGame(true, false);
+        updateScores();
+        updateTurn();
         setUpPieces();
     }
 
@@ -63,6 +65,7 @@ public class GameController {
                     gameView.setPiece(x, y, pieceFilepath);
                 }
                 else {
+                    // Set the icon of the button to null
                     gameView.setPiece(x, y, null);
                 }
             }
@@ -85,6 +88,172 @@ public class GameController {
         return filepath.toString();
     }
 
+    /**
+     * Starts a new game
+     * @param init set to true if initializing the first game, false if not
+     * @param playAgain set to true if starting a new game from the play again menu, false if not
+     */
+    public void newGame(boolean init, boolean playAgain) {
+        // Initialize the text fields for input
+        JTextField playerOneInput = new JTextField();
+        JTextField playerTwoInput = new JTextField();
+        // Set the prompt objects
+        Object[] prompt = {"Player 1:", playerOneInput, "Player 2:", playerTwoInput};
+        // Display the prompt
+        do {
+            int option = JOptionPane.showConfirmDialog(gameView.gameFrame, prompt, "Enter a player name", JOptionPane.OK_CANCEL_OPTION);
+            // If the user selects OK, then start a new game with new players using the text field inputs
+            if (option == JOptionPane.OK_OPTION) {
+                gameModel = new Game(new Player(playerOneInput.getText(), Piece.Color.White),
+                        new Player(playerTwoInput.getText(), Piece.Color.Black));
+                gameModel.setupStandardGame();
+                updateScores();
+                updateTurn();
+                break;
+            }
+            // If starting from the play again menu, return to it if cancelling
+            if (playAgain && (option == JOptionPane.CANCEL_OPTION || option == JOptionPane.CLOSED_OPTION)) {
+                playAgain();
+            }
+        }
+        // Loop this dialog if it is the first time initializing the game
+        while (init);
+    }
+
+    /**
+     * Resets the game with the existing players
+     */
+    public void resetGame() {
+        // Get the players
+        Player player1 = gameModel.currPlayer.playerColor == Piece.Color.White ?
+                gameModel.currPlayer : gameModel.nextPlayer;
+        Player player2 = gameModel.currPlayer.playerColor == Piece.Color.Black ?
+                gameModel.currPlayer : gameModel.nextPlayer;
+        // Make a new game with the players
+        gameModel = new Game(player1, player2);
+        // Set up the game
+        gameModel.setupStandardGame();
+        updateTurn();
+    }
+
+    /**
+     * Updates the scores in the GUI
+     */
+    public void updateScores() {
+        // Get the players
+        Player player1 = gameModel.currPlayer.playerColor == Piece.Color.White ?
+            gameModel.currPlayer : gameModel.nextPlayer;
+        Player player2 = gameModel.currPlayer.playerColor == Piece.Color.Black ?
+                gameModel.currPlayer : gameModel.nextPlayer;
+        // Set the labels to the player's name and score
+        gameView.playerOneLabel.setText(" " + player1.playerName + ": " + player1.score);
+        gameView.playerTwoLabel.setText(player2.playerName + ": " + player2.score + " ");
+    }
+
+    /**
+     * Update the turn in the GUI
+     */
+    public void updateTurn() {
+        // Set the label to the current player
+        gameView.currPlayerLabel.setText("It is " + gameModel.currPlayer.playerName + "'s turn");
+    }
+
+    /**
+     * Show a dialog to allow users to start a new game, reset the game, or exit the application
+     */
+    public void playAgain() {
+        // Set the options for the dialog
+        String[] options = new String[] {"New Game", "Restart Game", "Exit"};
+        // Create the dialog
+        int option = JOptionPane.showOptionDialog(null, "Would you like to play again?", "Play again",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE,
+                null, options, options[0]);
+        // Check for which option is selected
+        switch (option) {
+            case 0:
+                newGame(false, true);
+                break;
+            case 1:
+                resetGame();
+                break;
+            case 2:
+                gameView.gameFrame.dispose();
+                break;
+        }
+
+    }
+
+    /**
+     * Listener to handle the buttons in the option panel
+     */
+    class GameListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            // Check which button is pressed based on the action command
+            switch (e.getActionCommand()) {
+                case "Undo":
+                    // Check if the undo is valid
+                    if (!gameModel.undoMove(false)) {
+                        // Show an error message if it is not valid
+                        JOptionPane.showMessageDialog(null, "There are no moves to undo!",
+                                "Invalid Undo", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                    else {
+                        // Update the turn and board if valid
+                        updateTurn();
+                        gameView.resetBoardColors();
+                    }
+                    break;
+                case "Redo":
+                    // Check if the redo is valid
+                    if (!gameModel.redoMove()) {
+                        // Show an error message if it is not valid
+                        JOptionPane.showMessageDialog(null, "There are no moves to redo!",
+                                "Invalid Redo", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                    else {
+                        // Update the turn and board if valid
+                        updateTurn();
+                        gameView.resetBoardColors();
+                    }
+                    break;
+                case "Forfeit":
+                    // Show a confirmation to the player who is forfeiting
+                    int option = JOptionPane.showConfirmDialog(gameView.gameFrame,
+                            gameModel.currPlayer.playerName + ": are you sure you want to forfeit this game?",
+                            "Forfeit", JOptionPane.OK_CANCEL_OPTION);
+                    // Update the score if forfeiting and show play again dialog
+                    if (option == JOptionPane.OK_OPTION) {
+                        gameModel.nextPlayer.score++;
+                        updateScores();
+                        playAgain();
+                    }
+                    break;
+                case "Reset":
+                    // Show a confirmation for resetting the game
+                    option = JOptionPane.showConfirmDialog(gameView.gameFrame,
+                            "Are you sure you want to reset the game?",
+                            "Reset", JOptionPane.OK_CANCEL_OPTION);
+                    // Resets the game
+                    if (option == JOptionPane.OK_OPTION) {
+                        resetGame();
+                    }
+                    break;
+                case "New Game":
+                    // Show a confirmation for starting a new game
+                    option = JOptionPane.showConfirmDialog(gameView.gameFrame,
+                            "Are you sure you want to start a new game?",
+                            "Reset", JOptionPane.OK_CANCEL_OPTION);
+                    // Start a new game
+                    if (option == JOptionPane.OK_OPTION) {
+                        newGame(false, false);
+                    }
+                    break;
+            }
+            setUpPieces();
+        }
+    }
+
 
     /**
      * Listener for each SquareButton that includes selecting then moving a piece
@@ -102,7 +271,6 @@ public class GameController {
             // If the player is moving a selected piece
             else {
                 movePiece(xPosition, yPosition);
-
             }
         }
 
@@ -132,9 +300,16 @@ public class GameController {
             }
         }
 
+        /**
+         *
+         * @param xPosition
+         * @param yPosition
+         */
         private void movePiece(int xPosition, int yPosition) {
             // Check if the turn is valid
             if (gameModel.takeTurn(selectedSquare.xPosition, selectedSquare.yPosition, xPosition, yPosition)) {
+                // Update the player's turn
+                updateTurn();
                 // Move the piece icon from origin to target
                 gameView.setPiece(xPosition, yPosition, getPieceFilepath(selectedPiece));
                 gameView.setPiece(selectedSquare.xPosition, selectedSquare.yPosition, null);
@@ -147,12 +322,14 @@ public class GameController {
                 else if (gameModel.gameCondition == Game.GameCondition.Checkmate) {
                     JOptionPane.showMessageDialog(null, "Checkmate: " + gameModel.nextPlayer.playerName + " Wins!",
                             "Checkmate", JOptionPane.INFORMATION_MESSAGE);
-
+                    updateScores();
+                    playAgain();
                 }
                 // Check if this move places the players in a stalemate
                 else if (gameModel.gameCondition == Game.GameCondition.Stalemate) {
                     JOptionPane.showMessageDialog(null, "Stalemate: Is it a tie!",
                             "Stalemate", JOptionPane.INFORMATION_MESSAGE);
+                    playAgain();
                 }
             }
             // If the move is invalid, show a dialog to signify the move is invalid
@@ -161,93 +338,14 @@ public class GameController {
                         "Invalid Move", JOptionPane.INFORMATION_MESSAGE);
             }
             // Flip the boolean to indicate the player will be selecting a piece next
-            resetBoardColors();
+            gameView.resetBoardColors();
             selectingPiece = true;
         }
 
     }
 
-    public void newPlayers(boolean start) {
-        JTextField playerOneInput = new JTextField();
-        JTextField playerTwoInput = new JTextField();
-        Object[] prompt = {"Player 1:", playerOneInput, "Player 2:", playerTwoInput};
-        int option = start ? JOptionPane.OK_OPTION : JOptionPane.OK_CANCEL_OPTION;
-        JOptionPane.showConfirmDialog(gameView.gameFrame, prompt,"Enter a player name", option);
-        gameModel = new Game(new Player(playerOneInput.getText(), Piece.Color.White),
-                new Player(playerTwoInput.getText(), Piece.Color.Black));
-        gameModel.setupGame();
-    }
-
-    class GameListener implements ActionListener {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            switch (e.getActionCommand()) {
-                case "Undo":
-                    gameModel.undoMove(false);
-                    break;
-                case "Redo":
-                    gameModel.redoMove();
-                    break;
-                case "Forfeit:":
-                    gameModel.nextPlayer.score++;
-                case "Restart":
-                    Player player1 = gameModel.currPlayer.playerColor == Piece.Color.White ?
-                            gameModel.currPlayer : gameModel.nextPlayer;
-                    Player player2 = gameModel.currPlayer.playerColor == Piece.Color.Black ?
-                        gameModel.currPlayer : gameModel.nextPlayer;
-                    gameModel = new Game(player1, player2);
-                    gameModel.setupGame();
-                    break;
-                case "New Game":
-                    newPlayers(false);
-                    break;
-            }
-            setUpPieces();
-        }
-    }
-
-    public void resetBoardColors() {
-        for (int i = 0; i < Board.boardWidth; i++) {
-            for (int j = 0; j < Board.boardHeight; j++) {
-                Color squareColor;
-                if ((i + j) % 2 == 0) {
-                    squareColor = new Color(130, 82, 1);
-                }
-                else {
-                    squareColor = new Color(182,155,76);
-                }
-                gameView.squareButtons[i][j].setBackground(squareColor);
-            }
-        }
-    }
-
     public static void main(String[] args) {
         GameController gameController = new GameController(new Game(), new GameView(Board.boardWidth, Board.boardHeight));
-        /**
-        Game game = new Game();
-        game.setupGame();
-        game.takeTurn(0,6,0,5);
-        Print.printBoard(game.gameBoard);
-        System.out.println("Move Counter: " + game.moveCounter + " Move List Count: " + game.moveHistory.size());
-        game.takeTurn(1,1,1,2);
-        Print.printBoard(game.gameBoard);
-        System.out.println("Move Counter: " + game.moveCounter + " Move List Count: " + game.moveHistory.size());
-        game.undoMove();
-        Print.printBoard(game.gameBoard);
-        System.out.println("Move Counter: " + game.moveCounter + " Move List Count: " + game.moveHistory.size());
-        game.undoMove();
-        Print.printBoard(game.gameBoard);
-        System.out.println("Move Counter: " + game.moveCounter + " Move List Count: " + game.moveHistory.size());
-        game.redoMove();
-        Print.printBoard(game.gameBoard);
-        System.out.println("Move Counter: " + game.moveCounter + " Move List Count: " + game.moveHistory.size());
-        game.undoMove();
-        Print.printBoard(game.gameBoard);
-        System.out.println("Move Counter: " + game.moveCounter + " Move List Count: " + game.moveHistory.size());
-        game.takeTurn(1,7,2,5);
-        Print.printBoard(game.gameBoard);
-        System.out.println("Move Counter: " + game.moveCounter + " Move List Count: " + game.moveHistory.size());
-         */
     }
 
 }

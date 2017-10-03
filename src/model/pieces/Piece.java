@@ -21,7 +21,7 @@ public abstract class Piece {
     }
 
     public enum PieceType {
-        Bishop, King, Knight, Pawn, Queen, Rook, Zebrarider, Cannon
+        Bishop, King, Knight, Pawn, Queen, Rook, Zebra, Cannon
     }
 
     public PieceType type;
@@ -194,19 +194,4 @@ public abstract class Piece {
                 (Math.abs(targetX - originX) == leapM && Math.abs((targetY - originY)) == leapN);
     }
 
-    /**
-     * Checks validity for a leap-rider movement
-     * @param originX the x position of the origin
-     * @param originY the y position of the origin
-     * @param targetX the x position of the target
-     * @param targetY the y position of the target
-     * @param leapN the n component of the leap
-     * @param leapM the m component of the leap
-     * @return true if the move is valid, false if the move is invalid
-     */
-    boolean checkLeapRiderMovement(int originX, int originY, int targetX, int targetY, int leapN, int leapM) {
-        // The move is valid if the piece moves N horizontally and M vertically multiple times, or M vertically and N horizontally multiple times
-        return (Math.abs(targetX - originX) % leapN == 0 && Math.abs((targetY - originY)) % leapM == 0) ||
-                (Math.abs(targetX - originX) % leapM == 0 && Math.abs((targetY - originY)) % leapN == 0);
-    }
 }

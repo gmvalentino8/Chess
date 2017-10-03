@@ -2,12 +2,9 @@ package model;
 
 import model.pieces.Pawn;
 import model.pieces.Piece;
-import view.Print;
 
-import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Stack;
 
 /**
  * A Game is an object that is in charge of the chess game logic
@@ -25,7 +22,6 @@ public class Game {
     public Player nextPlayer;
     public List<Move> moveHistory;
     public int moveCounter;
-    public int matchCounter;
     public GameCondition gameCondition;
 
     /**
@@ -37,17 +33,20 @@ public class Game {
         this.nextPlayer = new Player("Player 2", Piece.Color.Black);
         this.moveHistory = new ArrayList<>();
         this.moveCounter = 0;
-        this.matchCounter = 0;
         this.gameCondition = GameCondition.Normal;
     }
 
+    /**
+     * Make a new game with existing players
+     * @param player1 the white player
+     * @param player2 the black player
+     */
     public Game(Player player1, Player player2) {
         this.gameBoard = new Board();
         this.currPlayer = player1;
         this.nextPlayer = player2;
         this.moveHistory = new ArrayList<>();
         this.moveCounter = 0;
-        this.matchCounter = 0;
         this.gameCondition = GameCondition.Normal;
     }
 
@@ -81,8 +80,8 @@ public class Game {
      * @param target the ending position of the move
      */
     public void movePiece(Piece selectedPiece, Square origin, Square target, boolean simulation) {
+        // Update current move information
         Move currMove = new Move();
-        // Update previous move information
         currMove.selectedPiece = selectedPiece;
         currMove.originSquare = origin;
         currMove.targetSquare = target;
@@ -90,6 +89,7 @@ public class Game {
         currMove.originY = origin.yPosition;
         currMove.currPlayer = currPlayer;
         currMove.nextPlayer = nextPlayer;
+        // Check for a pawn's first move
         if (selectedPiece.type == Piece.PieceType.Pawn) {
             currMove.pawnFirstMove = ((Pawn) selectedPiece).firstMove;
         }
@@ -105,10 +105,10 @@ public class Game {
                 moveHistory.remove(i);
             }
         }
+        // Add the move to the move history and increment the move counter
         moveHistory.add(currMove);
         moveCounter++;
-
-        // Update piece, game state, and move history
+        // Update piece and game state
         gameBoard.gameState[origin.xPosition][origin.yPosition].currentPiece = null;
         gameBoard.gameState[target.xPosition][target.yPosition].currentPiece = selectedPiece;
         selectedPiece.xPosition = target.xPosition;
@@ -118,28 +118,28 @@ public class Game {
 
     /**
      * Reverts the previous move
+     * @return true if valid undo, false if invalid undo
      */
-    public void undoMove(boolean simulation) {
+    public boolean undoMove(boolean simulation) {
+        // Check if there are no moves to undo
         if (moveCounter == 0) {
-            return;
+            return false;
         }
-        //System.out.println("Undo move:  Move Counter=" + moveCounter);
-        //Move.printMoveList(moveHistory);
-
-        //Print.printBoard(gameBoard);
-
+        // Check if the move is a simulation or not
         Move prevMove;
         if (simulation) {
+            // If it is a simulation, get the most recent move
             prevMove = moveHistory.get(moveHistory.size() - 1);
         }
         else {
+            // If it is not a simulation, get the move at the move counter
             prevMove = moveHistory.get(moveCounter - 1);
         }
-
+        // Check for pawn's first move information
         if (prevMove.selectedPiece.type == Piece.PieceType.Pawn) {
             ((Pawn) prevMove.selectedPiece).firstMove = prevMove.pawnFirstMove;
         }
-        // Update piece and game state
+        // Update piece information
         gameBoard.gameState[prevMove.originSquare.xPosition][prevMove.originSquare.yPosition].currentPiece = prevMove.selectedPiece;
         gameBoard.gameState[prevMove.targetSquare.xPosition][prevMove.targetSquare.yPosition].currentPiece = prevMove.takenPiece;
         prevMove.selectedPiece.xPosition = prevMove.originSquare.xPosition;
@@ -147,48 +147,54 @@ public class Game {
         if (prevMove.targetSquare.currentPiece != null) {
             prevMove.targetSquare.currentPiece.live = true;
         }
-        //Move.printMoveList(moveHistory);
-        //Print.printBoard(gameBoard);
-
+        // Update the player information
         currPlayer = prevMove.currPlayer;
         nextPlayer = prevMove.nextPlayer;
+        // Update the move counter
         moveCounter--;
+        return true;
     }
 
+    /**
+     * Reverts the previous undo
+     * @return true if the redo is valid, false if it is not valid
+     */
     public boolean redoMove() {
+        // Check if there are no moves to redo
         if (moveCounter == moveHistory.size()) {
             return false;
         }
-        //Print.printBoard(gameBoard);
-
+        // Get the next move from the move history
         Move nextMove = moveHistory.get(moveCounter);
+        // Check for pawn's first move information
         if (nextMove.selectedPiece.type == Piece.PieceType.Pawn) {
             ((Pawn) nextMove.selectedPiece).firstMove = nextMove.pawnFirstMove;
         }
-
+        // Check for if opponent's piece is eaten
         if (nextMove.targetSquare.currentPiece != null) {
             nextMove.targetSquare.currentPiece.live = false;
         }
+        // Update piece information
         gameBoard.gameState[nextMove.targetSquare.xPosition][nextMove.targetSquare.yPosition].currentPiece = nextMove.selectedPiece;
         gameBoard.gameState[nextMove.originSquare.xPosition][nextMove.originSquare.yPosition].currentPiece = null;
         nextMove.selectedPiece.xPosition = nextMove.targetSquare.xPosition;
         nextMove.selectedPiece.yPosition = nextMove.targetSquare.yPosition;
+        // Update player information
         currPlayer = nextMove.nextPlayer;
         nextPlayer = nextMove.currPlayer;
-        //Print.printBoard(gameBoard);
-
+        // Update the move counter
         moveCounter++;
         return true;
     }
 
+    /**
+     * Undo the previous move and clear it from the move history list
+     */
     public void clearMove() {
         undoMove(true);
-        //System.out.println("Clearing move:  Move Counter=" + moveCounter);
-        //Move.printMoveList(moveHistory);
         if (moveHistory.size() > 0) {
             moveHistory.remove(moveHistory.size() - 1);
         }
-        //Move.printMoveList(moveHistory);
     }
 
 
@@ -256,14 +262,14 @@ public class Game {
      * @param player the player to check for if in checkmate or not
      * @return true if in checkmate, false if not in checkmate
      */
-    public boolean checkStaleCheckmate(Player player) {
+    public boolean checkGameFinish(Player player) {
         // Get each piece for the player
         for (Piece piece : player.pieceSet) {
             if (piece.live) {
                 // Check all possible moves for that piece
                 for (int x = 0; x < Board.boardWidth; x++) {
                     for (int y = 0; y < Board.boardHeight; y++) {
-                        // If the move is valid and removes check there is no checkmate
+                        // If the move is valid and removes check there is no stalemate or checkmate
                         if(makeMove(player, piece.xPosition, piece.yPosition, x, y, true)) {
                             clearMove();
                             return false;
@@ -276,16 +282,26 @@ public class Game {
         return true;
     }
 
+    /**
+     * Gets all possible moves for a piece
+     * @param piece the selected piece
+     * @return a list of valid squares the piece can move to
+     */
     public List<Square> getPossibleMoves(Piece piece) {
+        // Initialize a list to hold the moves
         List<Square> possibleMoves = new ArrayList<>();
+        // Iterate through the entire board
         for (int x = 0; x < Board.boardWidth; x++) {
             for (int y = 0; y < Board.boardHeight; y++) {
+                // Simulate a move
                 if (makeMove(currPlayer, piece.xPosition, piece.yPosition, x, y, true)) {
+                    // If the move is valid, clear the move and add it to the possible moves list
                     clearMove();
                     possibleMoves.add(gameBoard.gameState[x][y]);
                 }
             }
         }
+        // Return the list of possible moves
         return possibleMoves;
     }
 
@@ -309,7 +325,7 @@ public class Game {
             // Check if the move places the opponent in check
             if (checkCheck(nextPlayer)) {
                 // Check if the move places the opponent in checkmate
-                if (checkStaleCheckmate(nextPlayer)) {
+                if (checkGameFinish(nextPlayer)) {
                     gameCondition = GameCondition.Checkmate;
                     currPlayer.score++;
                 }
@@ -318,7 +334,7 @@ public class Game {
                 }
             }
             // Check if the move places the players in a stalemate
-            else if (checkStaleCheckmate(nextPlayer)) {
+            else if (checkGameFinish(nextPlayer)) {
                 gameCondition = GameCondition.Stalemate;
             }
             // Set the game condition as normal
@@ -334,11 +350,6 @@ public class Game {
         return false;
     }
 
-    public void forfeitGame() {
-        nextPlayer.score++;
-
-    }
-
     /**
      * Helper function to swap the current player and next player for the game loop
      */
@@ -351,7 +362,7 @@ public class Game {
     /**
      * Sets up the pieces for a standard game of chess
      */
-    public void setupGame() {
+    public void setupStandardGame() {
         //Place white and black pawns onto the board and player piece list
         for (int i = 0; i < Board.boardWidth; i++) {
             gameBoard.addPiece(Piece.PieceType.Pawn, nextPlayer,i,1);
@@ -373,12 +384,44 @@ public class Game {
             gameBoard.addPiece(Piece.PieceType.Bishop, currPlayer,i,7);
         }
         //Place black and white queens on the gameBoard and player piece list
-        gameBoard.addPiece(Piece.PieceType.Queen, nextPlayer,4,0);
-        gameBoard.addPiece(Piece.PieceType.Queen, currPlayer,4,7);
+        gameBoard.addPiece(Piece.PieceType.Queen, nextPlayer,3,0);
+        gameBoard.addPiece(Piece.PieceType.Queen, currPlayer,3,7);
 
         //Place black and white kings on the gameBoard and player piece list
-        gameBoard.addPiece(Piece.PieceType.King, nextPlayer,3,0);
-        gameBoard.addPiece(Piece.PieceType.King, currPlayer,3,7);
+        gameBoard.addPiece(Piece.PieceType.King, nextPlayer,4,0);
+        gameBoard.addPiece(Piece.PieceType.King, currPlayer,4,7);
+    }
+
+    public void setupCustomGame() {
+        //Place white and black pawns onto the board and player piece list
+        for (int i = 0; i < Board.boardWidth; i++) {
+            gameBoard.addPiece(Piece.PieceType.Pawn, nextPlayer,i,1);
+            gameBoard.addPiece(Piece.PieceType.Pawn, currPlayer,i,6);
+        }
+        //Place white and black rooks onto the gameBoard and player piece list
+        gameBoard.addPiece(Piece.PieceType.Rook, nextPlayer, 0,0);
+        gameBoard.addPiece(Piece.PieceType.Rook, currPlayer,7,7);
+        //Place white and black rooks onto the gameBoard and player piece list
+        gameBoard.addPiece(Piece.PieceType.Cannon, nextPlayer, 7,0);
+        gameBoard.addPiece(Piece.PieceType.Cannon, currPlayer,0,7);
+        //Place white and black knights onto the gameBoard and player piece list
+        gameBoard.addPiece(Piece.PieceType.Zebra, nextPlayer,1,0);
+        gameBoard.addPiece(Piece.PieceType.Zebra, currPlayer,6,7);
+        //Place white and black zebrariders onto the gameBoard and player piece list
+        gameBoard.addPiece(Piece.PieceType.Knight, nextPlayer,6,0);
+        gameBoard.addPiece(Piece.PieceType.Knight, currPlayer,1,7);
+        //Place white and black bishops onto the gameBoard and player piece list
+        for (int i = 2; i < Board.boardWidth; i += 3) {
+            gameBoard.addPiece(Piece.PieceType.Bishop, nextPlayer,i,0);
+            gameBoard.addPiece(Piece.PieceType.Bishop, currPlayer,i,7);
+        }
+        //Place black and white queens on the gameBoard and player piece list
+        gameBoard.addPiece(Piece.PieceType.Queen, nextPlayer,3,0);
+        gameBoard.addPiece(Piece.PieceType.Queen, currPlayer,3,7);
+
+        //Place black and white kings on the gameBoard and player piece list
+        gameBoard.addPiece(Piece.PieceType.King, nextPlayer,4,0);
+        gameBoard.addPiece(Piece.PieceType.King, currPlayer,4,7);
     }
 
 }

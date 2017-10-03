@@ -73,8 +73,8 @@ public class Board {
                 gameState[xPosition][yPosition].currentPiece = newPiece;
                 player.pieceSet.add(newPiece);
                 break;
-            case Zebrarider:
-                newPiece = new Zebrarider(player.playerColor, xPosition, yPosition);
+            case Zebra:
+                newPiece = new Zebra(player.playerColor, xPosition, yPosition);
                 gameState[xPosition][yPosition].currentPiece = newPiece;
                 player.pieceSet.add(newPiece);
                 break;

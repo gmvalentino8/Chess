@@ -41,15 +41,6 @@ public class PawnTest {
     }
 
     @Test
-    public void testBug() {
-        GameController game = new GameController(new Game(), new GameView(Board.boardWidth, Board.boardHeight));
-        Piece testPiece = game.gameModel.gameBoard.gameState[0][6].currentPiece;
-        game.gameModel.takeTurn(0,6,0,4);
-        assertEquals(0, testPiece.xPosition);
-        assertEquals(4, testPiece.yPosition);
-    }
-
-    @Test
     public void testPawnCheckMove() {
         // Check for first turn 2-step forward Movement
         game.makeMove(game.currPlayer, 4,4, 4, 2, false);

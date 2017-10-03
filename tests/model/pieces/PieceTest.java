@@ -114,22 +114,4 @@ public class PieceTest extends TestCase {
         assertEquals(true, test);
     }
 
-    @Test
-    public void testLeapRiderMovement() {
-        Board board = new Board();
-        Player white = new Player("Player", Piece.Color.White);
-        board.addPiece(Piece.PieceType.Knight, white,0,0);
-        Piece tester = board.gameState[0][0].currentPiece;
-        boolean test;
-        // Test no obstacles
-        test = tester.checkLeapRiderMovement(0,0,2,3,2,3);
-        assertEquals(true, test);
-        // Test non-valid movement
-        test = tester.checkLeapRiderMovement(0,0,3,3,2,3);
-        assertEquals(false, test);
-        // Test obstacle in path
-        board.addPiece(Piece.PieceType.King, white, 1,1);
-        test = tester.checkLeapRiderMovement(0,0,4,6,2,3);
-        assertEquals(true, test);
-    }
 }
